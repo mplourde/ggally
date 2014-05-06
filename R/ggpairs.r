@@ -129,6 +129,7 @@
 #' )
 #' custom_car <- putPlot(custom_car, personal_plot, 1, 3)
 #' # custom_car
+
 ggpairs <- function(
   data,
   columns = 1:ncol(data),
@@ -137,8 +138,10 @@ ggpairs <- function(
   lower = list(),
   diag = list(),
   params = NULL,
+  time.var = NULL,
   ...,
   axisLabels = "internal",
+  stripSize = 6,
   legends = FALSE,
   verbose = FALSE
 ){
@@ -262,7 +265,13 @@ ggpairs <- function(
         section_params <- lower$params
       }
 
-      combo_aes <- addAndOverwriteAes(aes_string(x = xColName, y = yColName, ...), section_aes)
+      if (subType %in% c('facetline', 'facetccf')) {
+          combo_aes <- addAndOverwriteAes(aes_string(...), section_aes)
+          section_params <- c(var1=xColName, var2=yColName)
+      } else {
+          combo_aes <- addAndOverwriteAes(aes_string(x = xColName, y = yColName, ...), section_aes)
+      }
+
       if(subType == "density") {
         combo_aes <- addAndOverwriteAes(combo_aes, aes_string(group = combo_aes$colour))
         combo_aes
@@ -294,9 +303,15 @@ ggpairs <- function(
         section_aes <- lower$aes_string
         section_params <- lower$params
       }
-      combo_aes <- addAndOverwriteAes(aes_string(x = xColName, y = yColName, ...), section_aes)
-      if(subType != "dot")
+      if (subType %in% c('facetacf', 'facetpacf')) {
+            combo_aes <- addAndOverwriteAes(aes_string(...), section_aes)
+            section_params <- if (type == 'box-vert') c(var=yColName, ncol='2') else c(var=xColName, ncol='1')
+      } else {
+          combo_aes <- addAndOverwriteAes(aes_string(x = xColName, y = yColName, ...), section_aes)
+      }
+      if(subType != "dot" & !subType %in% c('facetacf', 'facetpacf')) 
         combo_aes <- mapping_color_fill(combo_aes)
+
       combo_params <- addAndOverwriteAes(params, section_params)
 
       p <- make_ggpair_text(subType, combo_aes, combo_params, printInfo)
@@ -354,7 +369,7 @@ ggpairs <- function(
 
       combo_params <- addAndOverwriteAes(params, diag$params)
 
-      if(subType != "blank")
+      if (subType != "blank")
         p <- make_ggpair_text(paste(subType, "Diag", sep = "", collapse = ""), combo_aes, combo_params,printInfo)
       else
         p <- "blank"
@@ -386,7 +401,14 @@ ggpairs <- function(
       combo_aes <- addAndOverwriteAes(aes_string(x = xColName, ...), diag$aes_string)
       combo_params <- addAndOverwriteAes(params, diag$params)
 
-      p <- make_ggpair_text("diagAxis", combo_aes, combo_params, printInfo)
+      subType <- diag$continuous
+      if (subType == 'summary') {
+          combo_params <- addAndOverwriteAes(params, c(var=xColName))
+           p <- make_ggpair_text(paste(subType, "Diag", sep = "", collapse = ""), combo_aes, combo_params,printInfo)
+      } else {
+          p <- make_ggpair_text("diagAxis", combo_aes, combo_params, printInfo)
+      }
+      p
     }
 
     ggpairsPlots[[length(ggpairsPlots)+1]] <- p
@@ -401,7 +423,9 @@ ggpairs <- function(
     verbose = verbose,
     printInfo = printInfo,
     axisLabels = axisLabels,
-    legends = legends
+    legends = legends,
+    stripSize = stripSize,
+    column_cols = brewer.pal(length(columns), 'Set2')
   )
 
   attributes(plotMatrix)$class <- "ggpairs"
@@ -647,6 +671,7 @@ if(!identical(plotObj$axisLabels,"internal")) {
   for(rowPos in 1:numCol){
     for(columnPos in 1:numCol){
       p <- getPlot(plotObj, rowPos, columnPos)
+
       if(!is_blank_plot(p)){
 
         pos <- columnPos + (rowPos - 1) * numCol
@@ -686,7 +711,7 @@ if(!identical(plotObj$axisLabels,"internal")) {
         # }
 
         noTicks <- c("internal", "none")
-        removeTicks <- plotObj$axisLabels %in% noTicks
+        removeTicks <- (plotObj$axisLabels %in% noTicks) & !isTRUE(p$show.ticks)
         if( ! is.null(p$axisLabels)) {
           removeTicks <- p$axisLabels %in% noTicks
         }
@@ -705,12 +730,19 @@ if(!identical(plotObj$axisLabels,"internal")) {
             # strip.text.x     = element_blank(),
             # strip.text.y     = element_blank(),
             # axis.ticks       = element_blank()
-            strip.background = element_rect(fill="white", colour = NA),
+            strip.background = element_rect(fill="white", colour = NA), # UNCOMMENT  this is the one
             strip.text.x     = element_blank(),
             strip.text.y     = element_blank(),
             axis.ticks       = element_blank()
           )
-
+        } else if (p$subType %in% c('facetline')) {
+            p <- p + theme(
+                #strip.text.y = element_text(size=plotObj$stripSize),
+                #strip.text.x = element_text(size=plotObj$stripSize)
+                #strip.background = element_rect(fill),
+                strip.text.y = element_blank(),
+                strip.text.x = element_blank()
+            )
         }
 
         # Adjusts for the blank space left by faceting, and manually
@@ -756,7 +788,7 @@ if(!identical(plotObj$axisLabels,"internal")) {
 
             if (columnPos != numCol) {
               p <- p + theme(
-                strip.background = element_blank(),
+                #strip.background = element_blank(), # UNCOMMENT
                 strip.text.x     = element_blank(),
                 strip.text.y     = element_blank()
               )
@@ -776,7 +808,7 @@ if(!identical(plotObj$axisLabels,"internal")) {
 
             if (rowPos != 1) {
               p <- p + theme(
-                strip.background = element_blank(),
+                #strip.background = element_blank(), # UNCOMMENT
                 strip.text.x     = element_blank(),
                 strip.text.y     = element_blank()
               )
@@ -789,12 +821,16 @@ if(!identical(plotObj$axisLabels,"internal")) {
 
           if (rowPos != 1) {
             p <- p + theme(
-              strip.background = element_blank(),
+              #strip.background = element_blank(), # UNCOMMENT
               strip.text.x     = element_blank(),
               strip.text.y     = element_blank()
             )
           }
 
+        }
+        else if (identical(p$subType, 'summaryDiag') & columnPos != numCol) {
+            #p <- p + geom_rect(colour=plotObj$column_col[columnPos], xmax=Inf, xmin=-Inf, ymax=Inf, ymin=-Inf)
+            p <- p + theme(panel.background=element_rect(fill=plotObj$column_col[columnPos]))
         }
         # Need to scale both variables for continuous plots
         else if (identical(p$type,"continuous") && !identical(p$subType,"cor")) {
@@ -803,8 +839,7 @@ if(!identical(plotObj$axisLabels,"internal")) {
         # Scale the variable for numeric diagonal plots
         else if (identical(p$type,"diag") && is.numeric(p$data[,as.character(p$mapping$x)])) {
           p <- p + labs(x = NULL, y = NULL) + theme(plot.margin = unit(rep(0,4), "lines"))
-        }
-
+        } 
         # if not internal labels
         else {
           p <- p + labs(x = NULL, y = NULL) + theme(plot.margin = unit(rep(0,4), "lines"))
@@ -825,11 +860,27 @@ if(!identical(plotObj$axisLabels,"internal")) {
           gp = gpar(fill = "white", lty = "blank"),
           vp = vplayout(rowPos, columnPos)
         )
+        vp <- vplayout(rowPos, columnPos)
+        if (p$subType == 'facetline') {
+            grob <- ggplotGrob(p)
+            grob.names <- lapply(grob$grobs, function(g) g$name)
+            strip.idxs <- which(grepl('strip', grob.names))
 
-        if(identical(plotObj$verbose, TRUE)) {
-          print(p, vp = vplayout(rowPos, columnPos))
+            cols <- c(plotObj$column_cols[columnPos], plotObj$column_cols[rowPos])
+
+            for (i in seq_along(strip.idxs)) {
+                strip <- grob$grobs[[strip.idxs[i]]]
+                strip.bg <- grid.ls(getGrob(strip, "strip.background.rect", grep=TRUE))$name
+                grob$grobs[[strip.idxs[i]]] <- editGrob(strip, strip.bg, gp=gpar(fill=cols[i]), grep=TRUE)
+            }
+
+            pushViewport(vp)
+            grid.draw(grob)
+            upViewport()
+        } else if(identical(plotObj$verbose, TRUE)) {
+          print(p, vp=vp)
         } else {
-          suppressMessages(suppressWarnings(print(p, vp = vplayout(rowPos, columnPos))))
+          suppressMessages(suppressWarnings(print(p, vp=vp)))
         }
 
       }# end plot alterations
