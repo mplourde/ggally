@@ -265,7 +265,7 @@ ggpairs <- function(
         section_params <- lower$params
       }
 
-      if (subType %in% c('facetline', 'facetccf')) {
+      if (subType %in% c('facetline', 'facetccf', 'facetwhiteccf')) {
           combo_aes <- addAndOverwriteAes(aes_string(...), section_aes)
           section_params <- c(var1=xColName, var2=yColName)
       } else {
@@ -303,13 +303,13 @@ ggpairs <- function(
         section_aes <- lower$aes_string
         section_params <- lower$params
       }
-      if (subType %in% c('facetacf', 'facetpacf')) {
+      if (subType %in% c('facetacf', 'facetpacf', 'facetmarginline')) {
             combo_aes <- addAndOverwriteAes(aes_string(...), section_aes)
             section_params <- if (type == 'box-vert') c(var=yColName, ncol='2') else c(var=xColName, ncol='1')
       } else {
           combo_aes <- addAndOverwriteAes(aes_string(x = xColName, y = yColName, ...), section_aes)
       }
-      if(subType != "dot" & !subType %in% c('facetacf', 'facetpacf')) 
+      if(subType != "dot" & !subType %in% c('facetacf', 'facetpacf', 'facetmarginline')) 
         combo_aes <- mapping_color_fill(combo_aes)
 
       combo_params <- addAndOverwriteAes(params, section_params)

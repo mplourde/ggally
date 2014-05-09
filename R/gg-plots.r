@@ -1226,7 +1226,14 @@ ggally_facetccf <- function(data, mapping, var1, var2, ...) {
     data <- by(data, INDICES=list(data[[colour]]),
        FUN=function(d) {
             ci <- qnorm((1 + level)/2)/sqrt(nrow(d))
-            with(ccf(d[[var1]], d[[var2]], plot=FALSE, lag.max=nrow(d)-1), 
+            #x <- d[[var2]]
+            #y <- d[[var1]]
+            #arima.x <- auto.arima(x)
+            #x.resids <- residuals(arima.x)
+            #y.filtered <- residuals(Arima(y, model=arima.x))
+            #d[[var2]] <- as.vector(x.resids)
+            #d[[var1]] <- as.vector(y.filtered)
+            with(ccf(d[[var2]], d[[var1]], plot=FALSE, lag.max=nrow(d)-1), 
                  data.frame(lag, acf,
                             colour=rep(d[[colour]], length.out=length(lag)),
                             ci=rep(ci, length.out=length(lag))))
@@ -1237,10 +1244,44 @@ ggally_facetccf <- function(data, mapping, var1, var2, ...) {
     q <- ggplot(data, aes(x=lag, y=acf)) + 
         geom_hline(aes(yintercept=0, colour=colour)) + 
         geom_segment(aes(xend=lag, yend=0, colour=colour)) +
-        geom_ribbon(aes(ymin=-ci, ymax=ci), alpha=.2) +
+        geom_ribbon(aes(ymin=-ci, ymax=ci), alpha=.4) +
         ylab('ccf') +
         theme(legend.position='none', axis.title=element_blank(), axis.text=element_blank(), axis.ticks=element_blank()) +
-        facet_wrap(~ colour, ncol=1)
+        facet_wrap(~ colour, ncol=1) + scale_y_continuous(limits=c(-1, 1))
+
+    q$type <- 'continuous'
+    q$subType <- 'facetccf'
+    q
+}
+
+ggally_facetwhiteccf <- function(data, mapping, var1, var2, ...) {
+    colour <- as.character(mapping$colour)
+    level <- .95
+    data <- by(data, INDICES=list(data[[colour]]),
+       FUN=function(d) {
+            ci <- qnorm((1 + level)/2)/sqrt(nrow(d))
+            x <- d[[var2]]
+            y <- d[[var1]]
+            arima.x <- auto.arima(x)
+            x.resids <- residuals(arima.x)
+            y.filtered <- residuals(Arima(y, model=arima.x))
+            d[[var2]] <- as.vector(x.resids)
+            d[[var1]] <- as.vector(y.filtered)
+            with(ccf(d[[var2]], d[[var1]], plot=FALSE, lag.max=nrow(d)-1), 
+                 data.frame(lag, acf,
+                            colour=rep(d[[colour]], length.out=length(lag)),
+                            ci=rep(ci, length.out=length(lag))))
+       }
+    )
+    data <- do.call(rbind, data)
+
+    q <- ggplot(data, aes(x=lag, y=acf)) + 
+        geom_hline(aes(yintercept=0, colour=colour)) + 
+        geom_segment(aes(xend=lag, yend=0, colour=colour)) +
+        geom_ribbon(aes(ymin=-ci, ymax=ci), alpha=.4) +
+        ylab('ccf') +
+        theme(legend.position='none', axis.title=element_blank(), axis.text=element_blank(), axis.ticks=element_blank()) +
+        facet_wrap(~ colour, ncol=1) + scale_y_continuous(limits=c(-1, 1)) + theme(panel.margin=unit(0, 'lines'))
 
     q$type <- 'continuous'
     q$subType <- 'facetccf'
@@ -1254,9 +1295,9 @@ ggally_summaryDiag <- function(data, mapping, var) {
     if (is.character(data[[var]]) | is.factor(data[[var]])) {
         p <- ggally_blank()
         d <- data.frame(label=sort(unique(as.character(data[[var]]))), x=c(1.25, 1.75), y=c(1.75, 1.25))
-        p <- p + geom_hline(data=d, mapping=aes(yintercept=y), colour='darkgray') + 
-                 geom_vline(data=d, mapping=aes(xintercept=x), colour='darkgray') +
-                 geom_text(data=d, mapping=aes(x=x, y=y, label=label, colour=factor(label)), size=4, face='bold')
+        p <- p + #geom_hline(data=d, mapping=aes(yintercept=y), colour='lightgray') + 
+                 #geom_vline(data=d, mapping=aes(xintercept=x), colour='lightgray') +
+                 geom_text(data=d, mapping=aes(x=x, y=y, label=label, colour=factor(label)), size=6, face='bold')
         p$type <- 'discrete'
         p$subType <- 'summaryDiag'
         return(p)
@@ -1274,8 +1315,9 @@ ggally_summaryDiag <- function(data, mapping, var) {
     #q + geom_text(label=c(service_a_text), x=1.25, y=1.5, size=10) 
 
     message('a')
-    q <- q + geom_text(label=c(service_a_text, service_b_text), x=c(1.25, 1.75), y=c(1.5,1.5), size=2) +
-        geom_text(label=var, x=1.5, y=1.8, size=3)
+    q <- q + #geom_text(label=c(service_a_text, service_b_text), x=c(1.25, 1.75), y=c(1.5,1.5), size=2) +
+        geom_text(label=var, x=1.5, y=1.5, size=4)
+        #geom_text(label=var, x=1.5, y=1.8, size=3)
 
     q$type <- 'continuous'
     q$subType <- 'summaryDiag'
@@ -1289,7 +1331,8 @@ ggally_facetacf <- function(data, mapping, var, cf.fun=acf, ncol=2, ...) {
     data <- by(data, INDICES=list(data[[colour]]),
        FUN=function(d) {
             ci <- qnorm((1 + level)/2)/sqrt(nrow(d))
-            with(cf.fun(d[[var]], plot=FALSE, lag.max=nrow(d)-1), 
+            #with(cf.fun(d[[var]], plot=FALSE, lag.max=nrow(d)-1), 
+            with(cf.fun(d[[var]], plot=FALSE), 
                  data.frame(lag, acf,
                             colour=rep(d[[colour]], length.out=length(lag)),
                             ci=rep(ci, length.out=length(lag))))
@@ -1303,7 +1346,7 @@ ggally_facetacf <- function(data, mapping, var, cf.fun=acf, ncol=2, ...) {
         geom_ribbon(aes(ymin=-ci, ymax=ci), alpha=.2) +
         ylab('ccf') +
         theme(legend.position='none', axis.title=element_blank(), axis.text=element_blank(), axis.ticks=element_blank()) +
-        facet_wrap(~ colour, ncol=as.integer(ncol))
+        facet_wrap(~ colour, ncol=as.integer(ncol)) + scale_y_continuous(limits=c(-1, 1))
 
     q$type <- 'continuous'
     q$subType <- 'facetacf'
@@ -1316,3 +1359,30 @@ ggally_facetpacf <- function(data, mapping, var, ncol, ...) {
     q
 }
 
+ggally_facetmarginline <- function(data, mapping, var, cf.fun=acf, ncol=2, ...) {
+    colour <- as.character(mapping$colour)
+    level <- .95
+    #data <- by(data, INDICES=list(data[[colour]]),
+    #   FUN=function(d) {
+    #        ci <- qnorm((1 + level)/2)/sqrt(nrow(d))
+    #        #with(cf.fun(d[[var]], plot=FALSE, lag.max=nrow(d)-1), 
+    #        with(cf.fun(d[[var]], plot=FALSE), 
+    #             data.frame(lag, acf,
+    #                        colour=rep(d[[colour]], length.out=length(lag)),
+    #                        ci=rep(ci, length.out=length(lag))))
+    #   }
+    #)
+    #data <- do.call(rbind, data)
+    
+    data <- transform(data, timestamp=ave(1:nrow(data), data[[colour]], FUN=seq_along))
+
+    facet.form <- as.formula(paste('~', colour))
+    q <- ggplot(data, aes_string(x='timestamp', y=var, colour=colour)) + 
+        geom_line() +
+        theme(legend.position='none', axis.title=element_blank(), axis.text=element_blank(), axis.ticks=element_blank()) +
+        facet_wrap(facet.form, ncol=as.integer(ncol))
+
+    q$type <- 'continuous'
+    q$subType <- 'facetmarginline'
+    q
+}
